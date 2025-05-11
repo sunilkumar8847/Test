@@ -21,13 +21,8 @@ const AddMeeting = (props) => {
     const [leadModelOpen, setLeadModel] = useState(false);
     const todayTime = new Date().toISOString().split('.')[0];
     const leadData = useSelector((state) => state?.leadData?.data);
-
-
     const user = JSON.parse(localStorage.getItem('user'))
-
     const contactList = useSelector((state) => state?.contactData?.data)
-
-
     const initialValues = {
         agenda: '',
         attendes: props.leadContect === 'contactView' && props.id ? [props.id] : [],
@@ -38,38 +33,44 @@ const AddMeeting = (props) => {
         notes: '',
         createBy: user?._id,
     }
-
     const formik = useFormik({
         initialValues: initialValues,
         validationSchema: MeetingSchema,
-        onSubmit: (values, { resetForm }) => {
-            
+        onSubmit: async (values, { resetForm }) => {
+            setIsLoding(true)
+            const payload = { ...values }
+            if (payload.related === 'Contact') payload.attendesLead = []
+            if (payload.related === 'Lead') payload.attendes = []
+            const response = await postApi('api/meeting/add', payload)
+            if (response.status === 200) {
+                setAction && setAction((prev) => !prev)
+                resetForm()
+                onClose()
+                toast.success('Meeting created successfully')
+            } else {
+                toast.error('Failed to create meeting')
+            }
+            setIsLoding(false)
         },
     });
     const { errors, touched, values, handleBlur, handleChange, handleSubmit, setFieldValue } = formik
-
-    const AddData = async () => {
-
-    };
-
     const fetchAllData = async () => {
-        
+        const contactRes = await getApi('api/contact/index')
+        const leadRes = await getApi('api/lead/index')
+        setContactData(contactRes?.data || [])
+        setLeadData(leadRes?.data || [])
     }
-
     useEffect(() => {
-
+        fetchAllData()
     }, [props.id, values.related])
-
     const extractLabels = (selectedItems) => {
         return selectedItems.map((item) => item._id);
     };
-
     const countriesWithEmailAsLabel = (values.related === "Contact" ? contactdata : leaddata)?.map((item) => ({
         ...item,
         value: item._id,
         label: values.related === "Contact" ? `${item.firstName} ${item.lastName}` : item.leadName,
     }));
-
     return (
         <Modal onClose={onClose} isOpen={isOpen} isCentered>
             <ModalOverlay />
@@ -77,11 +78,8 @@ const AddMeeting = (props) => {
                 <ModalHeader>Add Meeting </ModalHeader>
                 <ModalCloseButton />
                 <ModalBody overflowY={"auto"} height={"400px"}>
-                    {/* Contact Model  */}
                     <MultiContactModel data={contactdata} isOpen={contactModelOpen} onClose={setContactModel} fieldName='attendes' setFieldValue={setFieldValue} />
-                    {/* Lead Model  */}
                     <MultiLeadModel data={leaddata} isOpen={leadModelOpen} onClose={setLeadModel} fieldName='attendesLead' setFieldValue={setFieldValue} />
-
                     <Grid templateColumns="repeat(12, 1fr)" gap={3}>
                         <GridItem colSpan={{ base: 12 }}>
                             <FormLabel display='flex' ms='4px' fontSize='sm' fontWeight='500' mb='8px'>
@@ -112,7 +110,6 @@ const AddMeeting = (props) => {
                             <Text mb='10px' color={'red'} fontSize='sm'> {errors.related && touched.related && errors.related}</Text>
                         </GridItem>
                         {(values.related === "Contact" ? (contactdata?.length ?? 0) > 0 : (leaddata?.length ?? 0) > 0) && values.related &&
-
                             <GridItem colSpan={{ base: 12 }}>
                                 <Flex alignItems={'end'} justifyContent={'space-between'} >
                                     <Text w={'100%'} >
@@ -182,10 +179,7 @@ const AddMeeting = (props) => {
                             />
                             <Text mb='10px' color={'red'}> {errors.notes && touched.notes && errors.notes}</Text>
                         </GridItem>
-
                     </Grid>
-
-
                 </ModalBody>
                 <ModalFooter>
                     <Button size="sm" variant='brand' me={2} disabled={isLoding ? true : false} onClick={handleSubmit}>{isLoding ? <Spinner /> : 'Save'}</Button>
@@ -201,6 +195,5 @@ const AddMeeting = (props) => {
         </Modal>
     )
 }
-
 export default AddMeeting
 
